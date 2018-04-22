@@ -78,10 +78,8 @@ def init_argparse():
 	"""Inicializar parametros del programa."""
 
 	usage = '\nEjemplos de uso:\n\n' \
-			'- Interpretar un archivo infiriendo el formato:\n' \
-			'  %(prog)s [opciones] <archivo a interpretar>\n\n' \
-			'- Mostrar todos los formatos disponibles y sus definiciones:\n' \
-			'  %(prog)s [opciones] -s [opciones]\n\n' \
+			'- Recuperar datos de un archivo PDF generado por la factura online del Afip\n' \
+			'  %(prog)s <archivo pdf>\n\n' \
 			'- Mostrar esta ayuda:\n' \
 			'  %(prog)s -h\n\n'
 
@@ -103,12 +101,12 @@ def init_argparse():
 								"version":	__version__,
 								"help":		_("Mostrar el número de versión y salir")
 					},
-					"--output-path -o": {
+					"--output-file -o": {
 								"type": 	str,
 								"action": 	"store",
-								"dest": 	"outputpath",
+								"dest": 	"outputfile",
 								"default":	None,
-								"help":		_("Carpeta de outputh del padrón descargado.")
+								"help":		_("Generar la salida en un archivo determinado")
 					},
 					"--log-level -n": {
 								"type": 	str,
@@ -128,17 +126,8 @@ def init_argparse():
 	return cmdparser
 
 
-
 def showerror(msg):
 	print("\n!!!! [%s] error: %s\n" % (__appname__, msg))
-
-
-def resource_path(relative):
-	"""Obtiene un path, toma en consideración el uso de pyinstaller"""
-	if hasattr(sys, "_MEIPASS"):
-		return os.path.join(sys._MEIPASS, relative)
-	return os.path.join(relative)
-
 
 def expand_filename(filename):
 
@@ -157,7 +146,6 @@ def expand_filename(filename):
 		filename = filename.replace('{tmpfile}', tmp)
 
 	return filename
-
 
 
 def complinea(match):
@@ -197,14 +185,16 @@ patrones={
 }
 
 def get_pdf_data(filename):
-	pdf = PdfFileReader(open(filename, "rb"),strict=False)
-	for page in pdf.pages:
-		p = page.extractText()
-		for patron, fun in patrones.items():
-			m = re.search(patron, p)
-			if m:
-				return(fun(m))
 
+	with open(filename, "rb") as f:
+		pdf = PdfFileReader(f,strict=False)
+		for page in pdf.pages:
+			p = page.extractText()
+			for patron, fun in patrones.items():
+				m = re.search(patron, p)
+				if m:
+					return(fun(m))
+	return None
 
 ##################################################################################################################################################
 # Main program
@@ -221,14 +211,20 @@ if __name__ == "__main__":
 
 	if args.inputfile:
 		try:
-			print(get_pdf_data(args.inputfile))
+			data = get_pdf_data(args.inputfile)
+			if args.outputfile:
+				with open(args.outputfile, "wt") as f:
+					f.write(str(data))
+			else:
+				print(data)
+
 
 		except FileNotFoundError as e:
-			showerror("Imposible leer {}".format(args.inputfile))
+			showerror("Imposible leer {}, verifique que exista y sea un archivo PDF válido".format(args.inputfile))
 			sys.exit(-1)
 
 	else:
-		showerror("No se ha indicado el PDF a procesar")
+		showerror("No se ha indicado el archivo PDF a procesar")
 		cmdparser.print_help()
 		sys.exit(-1)
 
