@@ -71,6 +71,19 @@ except ImportError as err:
 	sys.exit(-1)
 
 
+
+##################################################################################################################################################
+# Patrones de identificación y de extracción de datos
+##################################################################################################################################################
+patrones={
+	re.compile(	"Comp. Nro:(\d+).+([0-9]{2}\/[0-9]{2}\/[0-9]{4})([0-9]{54})"
+				"Importe Otros Tributos: \$(\d+,\d+)Importe Neto No Gravado: \$(\d+,\d+)"
+				"Importe Neto Gravado: \$(\d+,\d+)IVA 27%: \$(\d+,\d+)IVA 21%: \$(\d+,\d+)"
+				"IVA 10.5%: \$(\d+,\d+)IVA 5%: \$(\d+,\d+)IVA 2.5%: \$(\d+,\d+)"
+				"Importe Otros Tributos: \$(\d+,\d+)Importe Total: \$(\d+,\d+)IVA 0%: \$(\d+,\d+)"): complinea
+}
+
+
 ##################################################################################################################################################
 # Inicializar parametros del programa
 ##################################################################################################################################################
@@ -130,6 +143,17 @@ def showerror(msg):
 	print("\n!!!! [%s] error: %s\n" % (__appname__, msg))
 
 def expand_filename(filename):
+	"""Expansión de nombre de archivo con ciertos keywords especiales
+
+	Args:
+		filename (str): Nombre de archivo
+
+	Example:
+
+		>>>	expand_filename('{desktop}/salida.txt') # Expande el nombre al escritorio del usuario
+		>>>	expand_filename('{tmpdir}/salida.txt')  # Expande el nombre a una carpeta temporal
+		>>>	expand_filename('{tmpdir}/{tmpfile}')   # Expande el nombre a una carpeta y archivo temporal
+	"""
 
 	if '{desktop}' in filename:
 		print(filename)
@@ -149,6 +173,8 @@ def expand_filename(filename):
 
 
 def complinea(match):
+	"""Extracción de datos del PDF de comprobante en linea del Afip
+	"""
 
 	def to_float(str):
 		return(float(str.replace(',','.')))
@@ -176,14 +202,6 @@ def complinea(match):
 	return(dic)
 
 
-patrones={
-	re.compile(	"Comp. Nro:(\d+).+([0-9]{2}\/[0-9]{2}\/[0-9]{4})([0-9]{54})"
-				"Importe Otros Tributos: \$(\d+,\d+)Importe Neto No Gravado: \$(\d+,\d+)"
-				"Importe Neto Gravado: \$(\d+,\d+)IVA 27%: \$(\d+,\d+)IVA 21%: \$(\d+,\d+)"
-				"IVA 10.5%: \$(\d+,\d+)IVA 5%: \$(\d+,\d+)IVA 2.5%: \$(\d+,\d+)"
-				"Importe Otros Tributos: \$(\d+,\d+)Importe Total: \$(\d+,\d+)IVA 0%: \$(\d+,\d+)"): complinea
-}
-
 def get_pdf_data(filename):
 
 	with open(filename, "rb") as f:
@@ -208,16 +226,14 @@ if __name__ == "__main__":
 		cmdparser.error(str(msg))
 		sys.exit(-1)
 
-
 	if args.inputfile:
 		try:
 			data = get_pdf_data(args.inputfile)
 			if args.outputfile:
-				with open(args.outputfile, "wt") as f:
+				with open(expand_filename(args.outputfile), "wt") as f:
 					f.write(str(data))
 			else:
 				print(data)
-
 
 		except FileNotFoundError as e:
 			showerror("Imposible leer {}, verifique que exista y sea un archivo PDF válido".format(args.inputfile))
@@ -227,4 +243,3 @@ if __name__ == "__main__":
 		showerror("No se ha indicado el archivo PDF a procesar")
 		cmdparser.print_help()
 		sys.exit(-1)
-
