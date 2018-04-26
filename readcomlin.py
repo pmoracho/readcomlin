@@ -13,233 +13,236 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU Library General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
-__author__		= "Patricio Moracho <pmoracho@gmail.com>"
-__appname__		= "readcomlin"
-__appdesc__		= "Extración de datos de los PDF de comprobantes en línea"
-__license__		= 'GPL v3'
-__copyright__	= "2018 %s" % (__author__)
-__version__		= "1.0.1"
-__date__		= "2018/04/20"
+__author__      = "Patricio Moracho <pmoracho@gmail.com>"
+__appname__     = "readcomlin"
+__appdesc__     = "Extración de datos de los PDF de comprobantes en línea"
+__license__     = 'GPL v3'
+__copyright__   = "2018 %s" % (__author__)
+__version__     = "1.0.1"
+__date__        = "2018/04/20"
 
-"""
 ###############################################################################
 # Imports
 ###############################################################################
-"""
 try:
-	import sys
-	import gettext
-	from gettext import gettext as _
-	gettext.textdomain('padrondl')
+    import sys
+    import os
+    import gettext
+    import importlib
+    from gettext import gettext as _
+    gettext.textdomain('padrondl')
 
-	def _my_gettext(s):
-		"""my_gettext: Traducir algunas cadenas de argparse."""
-		current_dict = {
-			'usage: ': 'uso: ',
-			'optional arguments': 'argumentos opcionales',
-			'show this help message and exit': 'mostrar esta ayuda y salir',
-			'positional arguments': 'argumentos posicionales',
-			'the following arguments are required: %s': 'los siguientes argumentos son requeridos: %s',
-			'show program''s version number and exit': 'Mostrar la versión del programa y salir',
-			'expected one argument': 'se espera un valor para el parámetro',
-			'expected at least one argument': 'se espera al menos un valor para el parámetro'
-		}
+    def _my_gettext(s):
+        """my_gettext: Traducir algunas cadenas de argparse."""
+        current_dict = {
+            'usage: ': 'uso: ',
+            'optional arguments': 'argumentos opcionales',
+            'show this help message and exit': 'mostrar esta ayuda y salir',
+            'positional arguments': 'argumentos posicionales',
+            'the following arguments are required: %s': 'los siguientes argumentos son requeridos: %s',
+            'show program''s version number and exit': 'Mostrar la versión del programa y salir',
+            'expected one argument': 'se espera un valor para el parámetro',
+            'expected at least one argument': 'se espera al menos un valor para el parámetro'
+        }
 
-		if s in current_dict:
-			return current_dict[s]
-		return s
+        if s in current_dict:
+            return current_dict[s]
+        return s
 
-	gettext.gettext = _my_gettext
+    gettext.gettext = _my_gettext
 
-	"""
-	Librerias adicionales
-	"""
-	import argparse
-	import re
-	from PyPDF2 import PdfFileWriter, PdfFileReader
+    """
+    Librerias adicionales
+    """
+    import argparse
+    import re
+    from PyPDF2 import PdfFileWriter, PdfFileReader
 
 except ImportError as err:
-	modulename = err.args[0].split()[3]
-	print("No fue posible importar el modulo: %s" % modulename)
-	sys.exit(-1)
+    modulename = err.args[0].split()[3]
+    print("No fue posible importar el modulo: %s" % modulename)
+    sys.exit(-1)
 
-
-
-##################################################################################################################################################
-# Patrones de identificación y de extracción de datos
-##################################################################################################################################################
-patrones={
-	re.compile(	"Comp. Nro:(\d+).+([0-9]{2}\/[0-9]{2}\/[0-9]{4})([0-9]{54})"
-				"Importe Otros Tributos: \$(\d+,\d+)Importe Neto No Gravado: \$(\d+,\d+)"
-				"Importe Neto Gravado: \$(\d+,\d+)IVA 27%: \$(\d+,\d+)IVA 21%: \$(\d+,\d+)"
-				"IVA 10.5%: \$(\d+,\d+)IVA 5%: \$(\d+,\d+)IVA 2.5%: \$(\d+,\d+)"
-				"Importe Otros Tributos: \$(\d+,\d+)Importe Total: \$(\d+,\d+)IVA 0%: \$(\d+,\d+)"): complinea
-}
 
 
 ##################################################################################################################################################
 # Inicializar parametros del programa
 ##################################################################################################################################################
 def init_argparse():
-	"""Inicializar parametros del programa."""
+    """Inicializar parametros del programa."""
 
-	usage = '\nEjemplos de uso:\n\n' \
-			'- Recuperar datos de un archivo PDF generado por la factura online del Afip\n' \
-			'  %(prog)s <archivo pdf>\n\n' \
-			'- Mostrar esta ayuda:\n' \
-			'  %(prog)s -h\n\n'
+    usage = '\nEjemplos de uso:\n\n' \
+            '- Recuperar datos de un archivo PDF generado por la factura online del Afip\n' \
+            '  %(prog)s <archivo pdf>\n\n' \
+            '- Mostrar esta ayuda:\n' \
+            '  %(prog)s -h\n\n'
 
-	cmdparser = argparse.ArgumentParser(prog=__appname__,
-										description="%s\n%s\n" % (__appdesc__, __copyright__),
-										epilog=usage,
-										add_help=True,
-										formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=35)
-	)
+    cmdparser = argparse.ArgumentParser(prog=__appname__,
+                                        description="%s\n%s\n" % (__appdesc__, __copyright__),
+                                        epilog=usage,
+                                        add_help=True,
+                                        formatter_class=lambda prog: argparse.RawTextHelpFormatter(prog, max_help_position=35)
+    )
 
-	opciones = {	"inputfile": {
-								"type": str,
-								"nargs": '?',
-								"action": "store",
-								"help": _("Archivo PDF a procesar")
-					},
-					"--version -v": {
-								"action":	"version",
-								"version":	__version__,
-								"help":		_("Mostrar el número de versión y salir")
-					},
-					"--output-file -o": {
-								"type": 	str,
-								"action": 	"store",
-								"dest": 	"outputfile",
-								"default":	None,
-								"help":		_("Generar la salida en un archivo determinado")
-					},
-					"--log-level -n": {
-								"type": 	str,
-								"action": 	"store",
-								"dest": 	"loglevel",
-								"default":	"info",
-								"help":		_("Nivel de log")
-					},
-			}
+    opciones = {    "inputfile": {
+                                "type": str,
+                                "nargs": '?',
+                                "action": "store",
+                                "help": _("Archivo PDF a procesar")
+                    },
+                    "--version -v": {
+                                "action":   "version",
+                                "version":  __version__,
+                                "help":     _("Mostrar el número de versión y salir")
+                    },
+                    "--output-file -o": {
+                                "type":     str,
+                                "action":   "store",
+                                "dest":     "outputfile",
+                                "default":  None,
+                                "help":     _("Generar la salida en un archivo determinado")
+                    },
+                    "--to-text -t": {
+                                "action":   "store_true",
+                                "dest":     "totext",
+                                "default":  False,
+                                "help":     _("Extraer la información de un PDF")
+                    },
+                    "--log-level -n": {
+                                "type":     str,
+                                "action":   "store",
+                                "dest":     "loglevel",
+                                "default":  "info",
+                                "help":     _("Nivel de log")
+                    },
+            }
 
-	for key, val in opciones.items():
-		args = key.split()
-		kwargs = {}
-		kwargs.update(val)
-		cmdparser.add_argument(*args, **kwargs)
+    for key, val in opciones.items():
+        args = key.split()
+        kwargs = {}
+        kwargs.update(val)
+        cmdparser.add_argument(*args, **kwargs)
 
-	return cmdparser
+    return cmdparser
 
 
 def showerror(msg):
-	print("\n!!!! [%s] error: %s\n" % (__appname__, msg))
+    print("\n!!!! [%s] error: %s\n" % (__appname__, msg))
 
 def expand_filename(filename):
-	"""Expansión de nombre de archivo con ciertos keywords especiales
+    """Expansión de nombre de archivo con ciertos keywords especiales
 
-	Args:
-		filename (str): Nombre de archivo
+    Args:
+        filename (str): Nombre de archivo
 
-	Example:
+    Example:
 
-		>>>	expand_filename('{desktop}/salida.txt') # Expande el nombre al escritorio del usuario
-		>>>	expand_filename('{tmpdir}/salida.txt')  # Expande el nombre a una carpeta temporal
-		>>>	expand_filename('{tmpdir}/{tmpfile}')   # Expande el nombre a una carpeta y archivo temporal
-	"""
+        >>> expand_filename('{desktop}/salida.txt') # Expande el nombre al escritorio del usuario
+        >>> expand_filename('{tmpdir}/salida.txt')  # Expande el nombre a una carpeta temporal
+        >>> expand_filename('{tmpdir}/{tmpfile}')   # Expande el nombre a una carpeta y archivo temporal
+    """
 
-	if '{desktop}' in filename:
-		print(filename)
-		tmp = os.path.join(os.path.expanduser('~'), 'Desktop')
-		print(tmp)
-		filename = filename.replace('{desktop}', tmp)
+    if '{desktop}' in filename:
+        print(filename)
+        tmp = os.path.join(os.path.expanduser('~'), 'Desktop')
+        print(tmp)
+        filename = filename.replace('{desktop}', tmp)
 
-	if '{tmpdir}' in filename:
-		tmp = tempfile.gettempdir()
-		filename = filename.replace('{tmpdir}', tmp)
+    if '{tmpdir}' in filename:
+        tmp = tempfile.gettempdir()
+        filename = filename.replace('{tmpdir}', tmp)
 
-	if '{tmpfile}' in filename:
-		tmp = tempfile.mktemp()
-		filename = filename.replace('{tmpfile}', tmp)
+    if '{tmpfile}' in filename:
+        tmp = tempfile.mktemp()
+        filename = filename.replace('{tmpfile}', tmp)
 
-	return filename
+    return filename
 
+def load_plugins(plug_path):
+    """Carga las clases de los formatos a procesar definidas
+    prviamente en la carpeta de "plugins"
+    """
 
-def complinea(match):
-	"""Extracción de datos del PDF de comprobante en linea del Afip
-	"""
+    pysearchre = re.compile('^pdf_data_.+\.py$', re.IGNORECASE)
+    pluginfiles = filter(pysearchre.search,
+                         os.listdir(os.path.join(os.path.dirname(__file__),plug_path)))
 
-	def to_float(str):
-		return(float(str.replace(',','.')))
+    form_module = lambda fp: '.' + os.path.splitext(fp)[0]
+    plugins = map(form_module, pluginfiles)
 
-	dic = {
-		"CUIT_Emisor": match.group(3)[14:14+11],
-		"Codigo_Comprobante": match.group(3)[25:25+2],
-		"Punto_Venta": match.group(3)[27:27+4],
-		"Numero_Comprobante": match.group(1)[4:],
-		"CAE_vto": match.group(2),
-		"CAE_nro": match.group(3)[0:14],
-		"CAE": match.group(3)[31:31+14],
-		"Fecha_Emision": match.group(3)[45:45+8],
-		"No_Gravado": to_float(match.group(5)),
-		"Gravado": to_float(match.group(6)),
-		"IVA_27": to_float(match.group(7)),
-		"IVA_21": to_float(match.group(8)),
-		"IVA_10.5": to_float(match.group(9)),
-		"IVA_5": to_float(match.group(10)),
-		"IVA_2.5": to_float(match.group(11)),
-		"Otros_Tributos": to_float(match.group(12)),
-		"Total": to_float(match.group(13)),
-		"IVA_0": to_float(match.group(14))
-	}
-	return(dic)
+    importlib.import_module('plugins')
+    modules = []
+    for plugin in plugins:
+        if not plugin.startswith('__'):
+            m = importlib.import_module(plugin, package="plugins")
+            o = getattr(m, "PDF_DATA")
+            if o:
+                modules.append(o())
+
+    return modules
 
 
-def get_pdf_data(filename):
+def get_pdf_data(filename, formatos):
 
-	with open(filename, "rb") as f:
-		pdf = PdfFileReader(f,strict=False)
-		for page in pdf.pages:
-			p = page.extractText()
-			for patron, fun in patrones.items():
-				m = re.search(patron, p)
-				if m:
-					return(fun(m))
-	return None
+    with open(filename, "rb") as f:
+        pdf = PdfFileReader(f,strict=False)
+        for page in pdf.pages:
+            p = page.extractText()
+            for f in formatos:
+                m = re.search(f.patron, p)
+                if m:
+                    return(f.get_data(m,p))
+    return None
+
+def get_pdf_totext(filename, formatos):
+
+    with open(filename, "rb") as f:
+        pdf = PdfFileReader(f,strict=False)
+        p = ""
+        for page in pdf.pages:
+            p = p + page.extractText()
+        return p
+
+    return None
 
 ##################################################################################################################################################
 # Main program
 ##################################################################################################################################################
 if __name__ == "__main__":
 
-	cmdparser = init_argparse()
-	try:
-		args = cmdparser.parse_args()
-	except IOError as msg:
-		cmdparser.error(str(msg))
-		sys.exit(-1)
+    cmdparser = init_argparse()
+    try:
+        args = cmdparser.parse_args()
+    except IOError as msg:
+        cmdparser.error(str(msg))
+        sys.exit(-1)
 
-	if args.inputfile:
-		try:
-			data = get_pdf_data(args.inputfile)
-			if args.outputfile:
-				with open(expand_filename(args.outputfile), "wt") as f:
-					f.write(str(data))
-			else:
-				print(data)
+    if args.inputfile:
+        try:
+            formatos = load_plugins("plugins")
+            if not args.totext:
+                data = get_pdf_data(args.inputfile, formatos)
+            else:
+                data = get_pdf_totext(args.inputfile, formatos)
 
-		except FileNotFoundError as e:
-			showerror("Imposible leer {}, verifique que exista y sea un archivo PDF válido".format(args.inputfile))
-			sys.exit(-1)
+            if args.outputfile:
+                with open(expand_filename(args.outputfile), "wt") as f:
+                    f.write(str(data))
+            else:
+                print(data)
 
-	else:
-		showerror("No se ha indicado el archivo PDF a procesar")
-		cmdparser.print_help()
-		sys.exit(-1)
+        except FileNotFoundError as e:
+            showerror("Imposible leer {}, verifique que exista y sea un archivo PDF válido".format(args.inputfile))
+            sys.exit(-1)
+
+    else:
+        showerror("No se ha indicado el archivo PDF a procesar")
+        cmdparser.print_help()
+        sys.exit(-1)
