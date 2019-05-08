@@ -198,7 +198,7 @@ def get_pdf_data(filename, formatos):
             for f in formatos:
                 m = re.search(f.patron, p)
                 if m:
-                    return(f.get_data(m,p))
+                    return(f.get_data(p))
     return None
 
 def get_pdf_totext(filename, formatos):
